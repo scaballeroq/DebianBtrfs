@@ -158,9 +158,27 @@ echo "$USER_NAME:$USER_PASS" | chpasswd
 echo "root:$ROOT_PASS" | chpasswd
 echo "⚠️  Contraseñas configuradas para '$USER_NAME' y 'root'."
 
-# Configurar GRUB (instalación básica)
+# Configurar GRUB (instalación robusta)
 echo "Instalando GRUB..."
-grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --recheck
+
+# 1. Instalación estándar (crea entrada NVRAM 'debian')
+if grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --recheck; then
+    log "INFO" "GRUB instalado correctamente (método estándar)."
+else
+    log "WARN" "La instalación estándar de GRUB falló o devolvió advertencias."
+fi
+
+# 2. Instalación 'removable' (fallback path /EFI/BOOT/BOOTX64.EFI)
+# Esto corrige problemas en muchas BIOS UEFI que no encuentran la entrada NVRAM
+echo "Realizando instalación de respaldo (removable)..."
+if grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck; then
+    log "INFO" "GRUB instalado en ruta 'removable' correctamente."
+else
+    log "ERROR" "Fallo en la instalación 'removable' de GRUB."
+fi
+
+# 3. Generar configuración final
+echo "Generando configuración de GRUB..."
 update-grub
 
 # Instalar GNOME
