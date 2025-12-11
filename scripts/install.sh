@@ -31,6 +31,10 @@ log "INFO" "=== INICIANDO INSTALACIÓN DE DEBIAN 13 (TRIXIE) ==="
 # 0. SOLICITUD DE DATOS DE USUARIO
 # ==============================================================================
 
+# Configurar teclado en español para evitar problemas con contraseñas
+log "INFO" "Configurando teclado en español..."
+loadkeys es 2>/dev/null || true
+
 echo ""
 log "INPUT" "Por favor, introduce los datos para el usuario principal:"
 read -p "Nombre de usuario (login, ej: caballero): " USER_NAME
@@ -169,12 +173,19 @@ else
 fi
 
 # 2. Instalación 'removable' (fallback path /EFI/BOOT/BOOTX64.EFI)
-# Esto corrige problemas en muchas BIOS UEFI que no encuentran la entrada NVRAM
-echo "Realizando instalación de respaldo (removable)..."
-if grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck; then
-    log "INFO" "GRUB instalado en ruta 'removable' correctamente."
+# Usamos copia manual de SHIM firmado para compatibilidad con Secure Boot (común en QEMU)
+echo "Configurando ruta 'removable' con soporte Secure Boot..."
+mkdir -p /boot/efi/EFI/BOOT
+
+# Intentamos usar shim-signed si existe, si no, lo que haya generado grub-install
+if [ -f /usr/lib/shim/shimx64.efi.signed ] && [ -f /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ]; then
+    log "INFO" "Detectado shim-signed. Copiando binarios firmados..."
+    cp /usr/lib/shim/shimx64.efi.signed /boot/efi/EFI/BOOT/BOOTX64.EFI
+    cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /boot/efi/EFI/BOOT/grubx64.efi
+    # Importante: grubx64.efi debe estar en el mismo directorio que BOOTX64.EFI (shim)
 else
-    log "ERROR" "Fallo en la instalación 'removable' de GRUB."
+    log "WARN" "No se encontraron binarios firmados de Shim/Grub. Usando grub-install estándar --removable."
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck
 fi
 
 # 3. Generar configuración final
