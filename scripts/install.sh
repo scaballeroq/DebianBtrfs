@@ -28,6 +28,39 @@ install_script_dependencies
 log "INFO" "=== INICIANDO INSTALACIÓN DE DEBIAN 13 (TRIXIE) ==="
 
 # ==============================================================================
+# 0. SOLICITUD DE DATOS DE USUARIO
+# ==============================================================================
+
+echo ""
+log "INPUT" "Por favor, introduce los datos para el usuario principal:"
+read -p "Nombre de usuario (login, ej: caballero): " USER_NAME
+read -p "Email (para configuración): " USER_EMAIL
+while true; do
+    read -s -p "Contraseña: " USER_PASS
+    echo ""
+    read -s -p "Confirmar contraseña: " USER_PASS_CONFIRM
+    echo ""
+    [ "$USER_PASS" = "$USER_PASS_CONFIRM" ] && break
+    log "ERROR" "Las contraseñas no coinciden. Inténtalo de nuevo."
+done
+
+echo ""
+log "INPUT" "Ahora establece la contraseña para el superusuario (ROOT):"
+while true; do
+    read -s -p "Contraseña de ROOT: " ROOT_PASS
+    echo ""
+    read -s -p "Confirmar contraseña de ROOT: " ROOT_PASS_CONFIRM
+    echo ""
+    [ "$ROOT_PASS" = "$ROOT_PASS_CONFIRM" ] && break
+    log "ERROR" "Las contraseñas de root no coinciden. Inténtalo de nuevo."
+done
+
+if [[ -z "$USER_NAME" || -z "$USER_PASS" || -z "$ROOT_PASS" ]]; then
+    die "El nombre de usuario y la contraseña son obligatorios."
+fi
+
+
+# ==============================================================================
 # 1. SELECCIÓN DE DISCO Y PARTICIONADO
 # ==============================================================================
 
@@ -118,15 +151,34 @@ echo "Instalando paquetes..."
 apt-get install -y $(get_all_packages)
 
 # Crear usuario
-echo "Creando usuario..."
-useradd -m -G sudo,adm -s /bin/bash -c "Sergio Caballero" caballero
-echo "caballero:caballero" | chpasswd
-echo "root:root" | chpasswd
-echo "⚠️  Contraseñas reseteadas a 'caballero' y 'root'. ¡CÁMBIALAS DESPUÉS!"
+# Crear usuario
+echo "Creando usuario $USER_NAME..."
+useradd -m -G sudo,adm -s /bin/bash -c "$USER_NAME <$USER_EMAIL>" "$USER_NAME"
+echo "$USER_NAME:$USER_PASS" | chpasswd
+echo "root:$ROOT_PASS" | chpasswd
+echo "⚠️  Contraseñas configuradas para '$USER_NAME' y 'root'."
 
-# Configurar GRUB (instalación básica)
+# Configurar GRUB (instalación robusta)
 echo "Instalando GRUB..."
-grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --recheck
+
+# 1. Instalación estándar (crea entrada NVRAM 'debian')
+if grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --recheck; then
+    log "INFO" "GRUB instalado correctamente (método estándar)."
+else
+    log "WARN" "La instalación estándar de GRUB falló o devolvió advertencias."
+fi
+
+# 2. Instalación 'removable' (fallback path /EFI/BOOT/BOOTX64.EFI)
+# Esto corrige problemas en muchas BIOS UEFI que no encuentran la entrada NVRAM
+echo "Realizando instalación de respaldo (removable)..."
+if grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck; then
+    log "INFO" "GRUB instalado en ruta 'removable' correctamente."
+else
+    log "ERROR" "Fallo en la instalación 'removable' de GRUB."
+fi
+
+# 3. Generar configuración final
+echo "Generando configuración de GRUB..."
 update-grub
 
 # Instalar GNOME
