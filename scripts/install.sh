@@ -143,9 +143,14 @@ truncate -s 0 /var/swap/swapfile
 chattr +C /var/swap/swapfile # NoCOW
 btrfs property set /var/swap compression none
 
-# Calcular tamaño swap (RAM + 2GB rule of thumb para hibernación, o fijo 35GB como pidió el usuario)
-# El usuario pidió 35GB para 32GB RAM.
-dd if=/dev/zero of=/var/swap/swapfile bs=1M count=35840 status=progress
+# Calcular tamaño swap (RAM + 3GB)
+# Obtenemos memoria total del sistema
+TOTAL_MEM_KB=\$(awk '/MemTotal/ {print \$2}' /proc/meminfo)
+TOTAL_MEM_MB=\$((TOTAL_MEM_KB / 1024))
+SWAP_SIZE_MB=\$((TOTAL_MEM_MB + 3072))
+
+echo "Detectada RAM: \${TOTAL_MEM_MB}MB. Estableciendo Swap de \${SWAP_SIZE_MB}MB (RAM + 3GB)..."
+dd if=/dev/zero of=/var/swap/swapfile bs=1M count=\${SWAP_SIZE_MB} status=progress
 chmod 600 /var/swap/swapfile
 mkswap -L SWAP /var/swap/swapfile
 swapon /var/swap/swapfile
