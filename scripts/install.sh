@@ -173,19 +173,13 @@ else
 fi
 
 # 2. Instalación 'removable' (fallback path /EFI/BOOT/BOOTX64.EFI)
-# Usamos copia manual de SHIM firmado para compatibilidad con Secure Boot (común en QEMU)
-echo "Configurando ruta 'removable' con soporte Secure Boot..."
-mkdir -p /boot/efi/EFI/BOOT
-
-# Intentamos usar shim-signed si existe, si no, lo que haya generado grub-install
-if [ -f /usr/lib/shim/shimx64.efi.signed ] && [ -f /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ]; then
-    log "INFO" "Detectado shim-signed. Copiando binarios firmados..."
-    cp /usr/lib/shim/shimx64.efi.signed /boot/efi/EFI/BOOT/BOOTX64.EFI
-    cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /boot/efi/EFI/BOOT/grubx64.efi
-    # Importante: grubx64.efi debe estar en el mismo directorio que BOOTX64.EFI (shim)
+# Esto soluciona problemas en máquinas donde la entrada NVRAM se pierde o no se respeta (común en QEMU/BIOS buggy).
+# Debian grub-install maneja automáticamente shim+signed grub si los paquetes están instalados.
+echo "Realizando instalación de respaldo (removable)..."
+if grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck; then
+    log "INFO" "GRUB instalado en ruta 'removable' correctamente."
 else
-    log "WARN" "No se encontraron binarios firmados de Shim/Grub. Usando grub-install estándar --removable."
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck
+    log "WARN" "Fallo en la instalación 'removable' de GRUB (no crítico si la estándar funcionó)."
 fi
 
 # 3. Generar configuración final
