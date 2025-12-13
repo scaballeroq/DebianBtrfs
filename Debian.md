@@ -131,7 +131,7 @@ ff02::2         ip6-allrouters
 EOF
 
 # Set the timezone (adjust to your region)
-ln -sf /usr/share/zoneinfo/Erope/Madrid /etc/localtime
+ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime
 
 # Install and configure locales
 apt install -y locales
@@ -156,6 +156,7 @@ apt update
 # Install kernel, system tools, and essential utilities
 apt install -y linux-image-amd64 linux-headers-amd64 \
     firmware-linux firmware-linux-nonfree \
+    firmware-iwlwifi firmware-amd-graphics firmware-misc-nonfree \
     grub-efi-amd64 efibootmgr network-manager \
     btrfs-progs sudo vim bash-completion
     
